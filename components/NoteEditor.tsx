@@ -20,6 +20,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, onUpdate, onDelete }) => 
   }, [note.id, mode]);
 
   const getHtml = () => {
+    // marked.parse returns a string by default unless async is configured
     const rawHtml = marked.parse(note.content || '') as string;
     return { __html: DOMPurify.sanitize(rawHtml) };
   };
@@ -67,15 +68,14 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, onUpdate, onDelete }) => 
           ) : (
             <div 
               className="prose prose-invert prose-zinc max-w-none 
-                prose-h1:text-4xl prose-h1:font-black prose-h1:uppercase prose-h1:tracking-tighter prose-h1:border-b prose-h1:border-white/10 prose-h1:pb-4 prose-h1:mb-10
-                prose-h2:text-2xl prose-h2:font-black prose-h2:uppercase prose-h2:tracking-widest prose-h2:mt-12 prose-h2:mb-6
-                prose-h3:text-lg prose-h3:font-black prose-h3:uppercase prose-h3:tracking-[0.2em] prose-h3:text-zinc-400
-                prose-p:text-zinc-400 prose-p:text-lg prose-p:leading-[1.8] prose-p:font-light
+                prose-h1:text-4xl prose-h1:font-extrabold prose-h1:tracking-tight prose-h1:mb-8
+                prose-h2:text-2xl prose-h2:font-bold prose-h2:mt-10 prose-h2:mb-4
+                prose-p:text-zinc-400 prose-p:text-lg prose-p:leading-relaxed
                 prose-strong:text-white prose-strong:font-bold
-                prose-code:text-emerald-400 prose-code:bg-zinc-900 prose-code:px-1 prose-code:font-mono prose-code:before:content-none prose-code:after:content-none
-                prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-white/5 prose-pre:p-6
-                prose-li:text-zinc-400 prose-li:font-light
-                prose-a:text-white prose-a:underline prose-a:decoration-zinc-800 hover:prose-a:decoration-white transition-all"
+                prose-code:text-emerald-400 prose-code:bg-zinc-900/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-sm prose-code:font-mono
+                prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-white/5 prose-pre:rounded-none
+                prose-li:text-zinc-400
+                prose-a:text-white prose-a:underline decoration-zinc-800 hover:decoration-white transition-all"
               dangerouslySetInnerHTML={getHtml()} 
             />
           )}
@@ -85,7 +85,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, onUpdate, onDelete }) => 
       <div className="h-10 px-6 border-t border-white/5 flex items-center justify-between bg-black text-[9px] font-black uppercase tracking-[0.4em] text-zinc-800 shrink-0">
         <div className="flex items-center space-x-8">
           <span>{note.content?.length || 0} CHRS</span>
-          <span>{note.content?.split(/\s+/).filter(Boolean).length || 0} WRDS</span>
+          <span>{note.content?.trim().split(/\s+/).filter(Boolean).length || 0} WRDS</span>
         </div>
         <div className="hidden sm:block">
           REV: {new Date(note.lastModified).getTime().toString(36).toUpperCase()}

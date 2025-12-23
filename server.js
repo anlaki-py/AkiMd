@@ -11,12 +11,12 @@ const VAULT_ROOT = path.resolve(process.cwd(), 'aki-vault');
 
 const app = express();
 const PORT = 3001;
-const HOST = '127.0.0.1'; // Use explicit local binding
+const HOST = '0.0.0.0'; // Bind to all interfaces to fix proxy 404s
 
 app.use(cors());
 app.use(bodyParser.json());
 
-// Logger
+// Logger for debugging
 app.use((req, res, next) => {
   console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
   next();
@@ -80,12 +80,14 @@ async function scanDir(dirPath, relativePath = '') {
   return items;
 }
 
+// API Routes
 app.get('/api/vault', async (req, res) => {
   try {
     await ensureVault();
     const vault = await scanDir(VAULT_ROOT);
     res.json(vault);
   } catch (err) {
+    console.error('Error scanning vault:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -127,6 +129,6 @@ app.post('/api/delete', async (req, res) => {
 
 app.listen(PORT, HOST, () => {
   console.log(`\nAKI BACKEND ONLINE`);
-  console.log(`Endpoint: http://${HOST}:${PORT}`);
+  console.log(`Endpoint: http://localhost:${PORT}`);
   console.log(`Vault: ${VAULT_ROOT}\n`);
 });
