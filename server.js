@@ -7,36 +7,34 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Use process.cwd() to ensure we look for the vault relative to where the command is run
 const VAULT_ROOT = path.resolve(process.cwd(), 'aki-vault');
 
 const app = express();
 const PORT = 3001;
-const HOST = '0.0.0.0'; // Bind to all interfaces for maximum compatibility on Linux
+const HOST = '127.0.0.1'; // Use explicit local binding
 
 app.use(cors());
 app.use(bodyParser.json());
 
-// Request Logger for debugging 404s
+// Logger
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
   next();
 });
 
-// Ensure vault exists and has at least one file
 async function ensureVault() {
   try {
     await fs.access(VAULT_ROOT);
   } catch {
-    console.log(`Creating initial vault directory at: ${VAULT_ROOT}`);
+    console.log(`Initializing vault at: ${VAULT_ROOT}`);
     await fs.mkdir(VAULT_ROOT, { recursive: true });
   }
   
   const files = await fs.readdir(VAULT_ROOT);
   if (files.length === 0) {
     await fs.writeFile(
-      path.join(VAULT_ROOT, 'Welcome.md'), 
-      '# Welcome to Aki\n\nThis is your professional workspace on Linux.\n\n- Files are stored in `./aki-vault/` \n- Edits are synced in real-time.'
+      path.join(VAULT_ROOT, 'Aki.md'), 
+      '# Aki Engine v1.0\n\nWelcome to your professional workspace.\n\n- **Ctrl+P** for search\n- **Real-time** sync to disk\n- **Brutalist** aesthetic'
     );
   }
 }
@@ -82,14 +80,12 @@ async function scanDir(dirPath, relativePath = '') {
   return items;
 }
 
-// API Routes
 app.get('/api/vault', async (req, res) => {
   try {
     await ensureVault();
     const vault = await scanDir(VAULT_ROOT);
     res.json(vault);
   } catch (err) {
-    console.error('Vault scan error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -110,12 +106,8 @@ app.post('/api/create', async (req, res) => {
   try {
     const relativePath = parentId === 'root' ? name : path.join(parentId, name);
     const fullPath = path.join(VAULT_ROOT, relativePath);
-    
-    if (type === 'folder') {
-      await fs.mkdir(fullPath, { recursive: true });
-    } else {
-      await fs.writeFile(fullPath, '', 'utf-8');
-    }
+    if (type === 'folder') await fs.mkdir(fullPath, { recursive: true });
+    else await fs.writeFile(fullPath, '', 'utf-8');
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -133,14 +125,8 @@ app.post('/api/delete', async (req, res) => {
   }
 });
 
-// Fallback for debugging
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ error: `Route ${req.method} ${req.originalUrl} not found on Aki Backend` });
-});
-
 app.listen(PORT, HOST, () => {
-  console.log('------------------------------------');
-  console.log(`AKI ENGINE ACTIVE: http://localhost:${PORT}`);
-  console.log(`VAULT LOCATION: ${VAULT_ROOT}`);
-  console.log('------------------------------------');
+  console.log(`\nAKI BACKEND ONLINE`);
+  console.log(`Endpoint: http://${HOST}:${PORT}`);
+  console.log(`Vault: ${VAULT_ROOT}\n`);
 });
