@@ -1,43 +1,62 @@
-import React, { useState, useEffect } from 'react';
-import { Menu, X, Search, Settings, PanelLeft, Plus, FileText, Folder } from 'lucide-react';
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { X, PanelLeft, Plus, Download, Upload, Terminal, Command, HardDrive } from 'lucide-react';
 import FileExplorer from './components/FileExplorer';
 import NoteEditor from './components/NoteEditor';
 import { VaultItem, VaultState } from './types';
 import { INITIAL_VAULT_ITEMS } from './constants';
 
-const STORAGE_KEY = 'aki_vault_state';
+const STORAGE_KEY = 'aki_vault_v1_production';
 
 const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [status, setStatus] = useState<'idle' | 'saving'>('idle');
+  
   const [state, setState] = useState<VaultState>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
         return JSON.parse(saved);
       } catch (e) {
-        console.error("Failed to parse vault", e);
+        console.error("Vault corrupted, initializing fresh", e);
       }
     }
     return {
       items: INITIAL_VAULT_ITEMS,
-      activeItemId: 'welcome-md',
-      sidebarOpen: window.innerWidth > 768,
+      activeItemId: 'getting-started-md',
+      sidebarOpen: window.innerWidth > 1024,
     };
   });
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+  const persistState = useCallback((newState: VaultState) => {
+    setStatus('saving');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
+    setTimeout(() => setStatus('idle'), 600);
+  }, []);
 
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth > 768 && !state.sidebarOpen) {
-        setState(prev => ({ ...prev, sidebarOpen: true }));
+    persistState(state);
+  }, [state, persistState]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.querySelector('input[placeholder*="SEARCH"]') as HTMLInputElement;
+        searchInput?.focus();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        handleCreateNote();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        persistState(state);
       }
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [state.sidebarOpen]);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state]);
 
   const activeNote = state.activeItemId ? state.items[state.activeItemId] : null;
 
@@ -56,16 +75,6 @@ const App: React.FC = () => {
     }));
   };
 
-  const handleRenameItem = (id: string, newName: string) => {
-    setState(prev => ({
-      ...prev,
-      items: {
-        ...prev.items,
-        [id]: { ...prev.items[id], name: newName, lastModified: Date.now() }
-      }
-    }));
-  };
-
   const handleCreateNote = (parentId: string = 'root') => {
     const id = `note-${Date.now()}`;
     const newNote: VaultItem = {
@@ -78,19 +87,11 @@ const App: React.FC = () => {
     };
 
     setState(prev => {
-      const parent = prev.items[parentId];
-      const updatedParent = {
-        ...parent,
-        children: [...(parent.children || []), id]
-      };
-
+      const parent = prev.items[parentId] || prev.items['root'];
+      const updatedParent = { ...parent, children: [...(parent.children || []), id] };
       return {
         ...prev,
-        items: {
-          ...prev.items,
-          [parentId]: updatedParent,
-          [id]: newNote
-        },
+        items: { ...prev.items, [parent.id]: updatedParent, [id]: newNote },
         activeItemId: id,
         sidebarOpen: window.innerWidth < 768 ? false : prev.sidebarOpen
       };
@@ -107,182 +108,159 @@ const App: React.FC = () => {
       children: [],
       lastModified: Date.now(),
     };
-
     setState(prev => {
-      const parent = prev.items[parentId];
-      const updatedParent = {
-        ...parent,
-        children: [...(parent.children || []), id]
-      };
-
+      const parent = prev.items[parentId] || prev.items['root'];
       return {
         ...prev,
         items: {
           ...prev.items,
-          [parentId]: updatedParent,
+          [parent.id]: { ...parent, children: [...(parent.children || []), id] },
           [id]: newFolder
         }
       };
     });
   };
 
-  const handleDeleteNote = (id: string) => {
+  const handleDeleteItem = (id: string) => {
     if (id === 'root') return;
-    const itemToDelete = state.items[id];
-    const confirmMsg = itemToDelete.type === 'folder' 
-      ? `Delete folder "${itemToDelete.name}" and all its contents?` 
-      : `Delete this note permanently?`;
-      
-    if (!confirm(confirmMsg)) return;
+    if (!confirm('Permanently delete this item?')) return;
 
     setState(prev => {
       const newItems = { ...prev.items };
-      
       const recursiveDelete = (itemId: string) => {
         const item = newItems[itemId];
-        if (!item) return;
-        if (item.type === 'folder' && item.children) {
-          item.children.forEach(childId => recursiveDelete(childId));
-        }
+        if (item?.children) item.children.forEach(recursiveDelete);
         delete newItems[itemId];
       };
-
       const item = prev.items[id];
       if (item.parentId && newItems[item.parentId]) {
-        const parent = newItems[item.parentId];
-        newItems[item.parentId] = {
-          ...parent,
-          children: parent.children?.filter(cid => cid !== id) || []
-        };
+        newItems[item.parentId].children = newItems[item.parentId].children?.filter(c => c !== id);
       }
-
       recursiveDelete(id);
-      
-      return { 
-        ...prev, 
-        items: newItems, 
-        activeItemId: prev.activeItemId === id ? 'welcome-md' : prev.activeItemId 
-      };
+      return { ...prev, items: newItems, activeItemId: null };
     });
   };
 
-  const toggleSidebar = () => setState(p => ({ ...p, sidebarOpen: !p.sidebarOpen }));
+  const handleExportVault = () => {
+    const data = JSON.stringify(state, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `aki-vault-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportVault = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const imported = JSON.parse(ev.target?.result as string);
+        if (imported.items && imported.items.root) {
+          setState(imported);
+        }
+      } catch (err) {
+        alert('Invalid Vault Archive.');
+      }
+    };
+    reader.readAsText(file);
+  };
 
   return (
-    <div className="flex h-screen w-screen bg-black text-white font-sans overflow-hidden select-none md:select-auto">
-      {/* Mobile Sidebar Overlay */}
-      <div 
-        className={`fixed inset-0 bg-black/90 backdrop-blur-none z-40 md:hidden transition-all duration-300
-          ${state.sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
-        onClick={toggleSidebar}
-        aria-hidden="true"
-      />
-
-      {/* Sidebar */}
+    <div className="flex h-screen w-screen bg-black text-white font-sans overflow-hidden">
       <aside 
-        className={`fixed md:relative z-50 h-full bg-black border-r border-white/10 transition-all duration-300 ease-in-out flex flex-col overflow-hidden
-          ${state.sidebarOpen 
-            ? 'w-[85vw] md:w-72 translate-x-0' 
-            : '-translate-x-full md:translate-x-0 md:w-0'
-          }`}
+        className={`fixed md:relative z-50 h-full bg-black border-r border-white/10 transition-all duration-200
+          ${state.sidebarOpen ? 'w-[85vw] md:w-72 translate-x-0' : '-translate-x-full md:w-0'}`}
       >
-        <div className="flex flex-col h-full w-full overflow-hidden shrink-0">
+        <div className="flex flex-col h-full w-full">
           <div className="h-16 px-6 border-b border-white/10 flex items-center justify-between shrink-0">
-            <div className="flex items-center space-x-4">
-               <div className="w-8 h-8 bg-white flex items-center justify-center">
-                  <span className="text-black font-black text-sm">A</span>
+            <div className="flex items-center space-x-3">
+               <div className="w-6 h-6 bg-white flex items-center justify-center">
+                  <span className="text-black font-black text-[10px]">AKI</span>
                </div>
-               <span className="font-bold tracking-tighter text-2xl uppercase">aki.md</span>
+               <span className="font-bold tracking-tighter text-base uppercase">Vault</span>
             </div>
-            <button 
-              onClick={toggleSidebar} 
-              className="md:hidden text-zinc-500 hover:text-white transition-colors p-2"
-            >
-               <X size={20} />
+            <button onClick={() => setState(s => ({...s, sidebarOpen: false}))} className="md:hidden p-2 text-zinc-500 hover:text-white">
+              <X size={18} />
             </button>
           </div>
           
-          <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pb-10">
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
              <FileExplorer 
                 items={state.items} 
                 activeId={state.activeItemId}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
-                onSelectItem={(id) => {
-                  setState(p => ({ 
-                    ...p, 
-                    activeItemId: id, 
-                    sidebarOpen: window.innerWidth < 768 ? false : p.sidebarOpen 
-                  }));
-                }}
+                onSelectItem={(id) => setState(p => ({ ...p, activeItemId: id }))}
                 onNewFile={handleCreateNote}
                 onNewFolder={handleCreateFolder}
-                onRenameItem={handleRenameItem}
+                onRenameItem={(id, name) => setState(prev => ({
+                  ...prev,
+                  items: { ...prev.items, [id]: { ...prev.items[id], name, lastModified: Date.now() } }
+                }))}
              />
+          </div>
+
+          <div className="p-4 border-t border-white/10 bg-zinc-950/20 space-y-1">
+            <button onClick={handleExportVault} className="w-full flex items-center px-4 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-white hover:bg-white/5 transition-all">
+              <Download size={12} className="mr-3" /> Export Vault
+            </button>
+            <label className="w-full flex items-center px-4 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-white hover:bg-white/5 cursor-pointer transition-all">
+              <Upload size={12} className="mr-3" /> Import Archive
+              <input type="file" className="hidden" onChange={handleImportVault} accept=".json" />
+            </label>
           </div>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 bg-black relative h-full">
-        {/* Top Header Controls */}
-        <div className="h-16 flex items-center px-4 border-b border-white/10 bg-black z-20 shrink-0">
+      <main className="flex-1 flex flex-col min-w-0 bg-black relative">
+        <div className="h-16 flex items-center px-6 border-b border-white/10 bg-black z-40 shrink-0">
           <button 
-            onClick={toggleSidebar}
-            className={`p-3 transition-all border border-transparent ${state.sidebarOpen && window.innerWidth < 768 ? 'border-white/10 text-white' : 'text-zinc-500 hover:text-white'}`}
+            onClick={() => setState(p => ({...p, sidebarOpen: !p.sidebarOpen}))}
+            className="p-2 text-zinc-500 hover:text-white transition-colors mr-4"
           >
-            {state.sidebarOpen && window.innerWidth < 768 ? <X size={20} /> : <PanelLeft size={20} />}
+            <PanelLeft size={20} />
           </button>
           
-          <div className="flex-1 min-w-0 flex items-center justify-center">
-            {activeNote && window.innerWidth < 768 && (
-               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600 truncate px-4">
-                  {activeNote.name.replace('.md', '')}
-               </span>
-            )}
+          <div className="flex-1 flex items-center space-x-4 overflow-hidden">
+            <div className="hidden sm:flex items-center text-[10px] font-bold text-zinc-600 uppercase tracking-widest space-x-2">
+               <Terminal size={12} />
+               <span className="truncate">/ workspace / {activeNote?.name || 'idle'}</span>
+            </div>
           </div>
 
-          <button 
-            onClick={() => handleCreateNote()}
-            className="flex items-center justify-center px-6 h-10 bg-white text-black font-black text-[11px] uppercase tracking-widest hover:bg-zinc-200 transition-all active:translate-y-px"
-          >
-            <Plus size={16} />
-            <span className="hidden md:inline ml-2">New Note</span>
-          </button>
+          <div className="flex items-center space-x-6">
+            <div className={`flex items-center space-x-2 text-[9px] font-black uppercase tracking-widest transition-opacity duration-300 ${status === 'idle' ? 'opacity-0' : 'opacity-100'}`}>
+               <div className="w-1 h-1 bg-white animate-pulse" />
+               <span className="text-zinc-500">Auto-Sync</span>
+            </div>
+            
+            <button 
+              onClick={() => handleCreateNote()}
+              className="flex items-center px-6 h-10 bg-white text-black font-black text-[10px] uppercase tracking-[0.2em] hover:bg-zinc-200 transition-colors"
+            >
+              <Plus size={14} className="mr-2" /> New Note
+            </button>
+          </div>
         </div>
 
-        {/* Editor Wrapper */}
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-hidden">
           {activeNote && activeNote.type === 'markdown' ? (
             <NoteEditor 
               key={activeNote.id}
               note={activeNote} 
-              searchQuery={searchQuery}
               onUpdate={handleUpdateNote}
-              onDelete={handleDeleteNote}
+              onDelete={handleDeleteItem}
             />
-          ) : activeNote && activeNote.type === 'folder' ? (
-            <div className="h-full flex flex-col items-center justify-center text-zinc-900 space-y-8 px-10 text-center">
-              <div className="w-24 h-24 border border-zinc-900 flex items-center justify-center">
-                 <Folder size={40} className="text-zinc-800" />
-              </div>
-              <div className="space-y-3">
-                <p className="text-zinc-700 font-black tracking-[0.5em] uppercase text-xs">Directory Selected</p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-800 max-w-[240px] leading-relaxed">"{activeNote.name}"</p>
-                <div className="flex justify-center space-x-4 pt-4">
-                   <button onClick={() => handleCreateNote(activeNote.id)} className="px-4 py-2 border border-zinc-800 text-[9px] uppercase tracking-widest text-zinc-600 hover:border-white hover:text-white">New File</button>
-                   <button onClick={() => handleDeleteNote(activeNote.id)} className="px-4 py-2 border border-zinc-800 text-[9px] uppercase tracking-widest text-red-900/50 hover:border-red-500 hover:text-red-500">Delete Folder</button>
-                </div>
-              </div>
-            </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-zinc-900 space-y-8 px-10 text-center">
-              <div className="w-24 h-24 border border-zinc-900 flex items-center justify-center">
-                 <FileText size={40} className="text-zinc-800" />
-              </div>
-              <div className="space-y-3">
-                <p className="text-zinc-700 font-black tracking-[0.5em] uppercase text-xs">System Idle</p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-800 max-w-[240px] leading-relaxed">Vault connection stable. Awaiting document selection to initialize workspace.</p>
+            <div className="h-full flex flex-col items-center justify-center space-y-8 opacity-10">
+              <HardDrive size={64} strokeWidth={1} />
+              <div className="text-center space-y-2">
+                <p className="text-[11px] font-black uppercase tracking-[0.6em]">System Standby</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em]">Select an object from the directory</p>
               </div>
             </div>
           )}

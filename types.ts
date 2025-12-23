@@ -7,12 +7,15 @@ export interface VaultItem {
   type: FileType;
   content?: string;
   parentId?: string;
-  children?: string[]; // IDs of children
+  children?: string[];
   lastModified: number;
+  tags?: string[];
+  isPinned?: boolean;
 }
 
 export interface VaultState {
   items: Record<string, VaultItem>;
   activeItemId: string | null;
   sidebarOpen: boolean;
+  lastBackup?: number;
 }

@@ -1,4 +1,4 @@
-/* Standard CSS - Tailwind handled by CDN or build tool */
+
 :root {
     color-scheme: dark;
 }
@@ -7,97 +7,51 @@ body {
     font-family: 'Space Grotesk', sans-serif;
     background-color: #000;
     color: #fff;
+    margin: 0;
     overflow: hidden;
-    -webkit-font-smoothing: antialiased;
-    overscroll-behavior-y: none;
-    -webkit-tap-highlight-color: transparent;
 }
 
-.mono {
-    font-family: 'Space Mono', monospace;
+* {
+    border-radius: 0 !important;
+    box-sizing: border-box;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 3px;
+    height: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-    background: #000;
+    background: transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #27272a;
+    background: #111;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #3f3f46;
+    background: #333;
 }
 
-/* Brutalist Aesthetic: Remove all default rounding */
-* {
-    border-radius: 0 !important;
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
-/* Smooth Transitions for professional feel */
-button, a, input, textarea {
-    transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, color 0.15s ease;
+.animate-fade {
+    animation: fadeIn 0.3s ease-out forwards;
 }
 
-/* Typography Overrides for Markdown Preview */
-.prose {
-    color: #d4d4d8 !important;
-    max-width: none !important;
-}
+/* Production Typography */
+.prose h1 { letter-spacing: -0.05em; line-height: 1; }
+.prose p { margin-bottom: 2rem; }
 
-.prose h1, .prose h2, .prose h3, .prose h4 {
-    font-family: 'Space Grotesk', sans-serif !important;
-    color: #fff !important;
-    letter-spacing: -0.05em;
-    text-transform: uppercase;
-    font-weight: 800 !important;
-}
-
-.prose p {
-    font-family: 'Space Grotesk', sans-serif;
-    line-height: 1.8;
-    font-weight: 300;
-}
-
-.prose strong {
-    color: #fff !important;
-    font-weight: 700 !important;
-}
-
-.prose code {
-    background-color: #18181b !important;
-    color: #fff !important;
-    padding: 0.2rem 0.4rem !important;
-    font-family: 'Space Mono', monospace !important;
-    font-weight: 400 !important;
-}
-
-.prose code::before, .prose code::after {
-    content: "" !important;
-}
-
-.prose pre {
-    background-color: #000 !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-}
+/* Interactive States */
+button:active { transform: translateY(1px); }
+button:disabled { cursor: not-allowed; pointer-events: none; }
 
 ::selection {
-    background: #ffffff;
-    color: #000000;
-}
-
-.terminal-editor {
-    font-family: 'Space Mono', monospace !important;
-    line-height: 1.625 !important;
-}
-
-.search-highlight {
-    background-color: #fff;
-    color: #000;
-    font-weight: 900;
+    background: white;
+    color: black;
 }
