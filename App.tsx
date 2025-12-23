@@ -136,6 +136,14 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen bg-black text-white font-sans overflow-hidden selection:bg-white selection:text-black">
+      {/* Mobile Backdrop */}
+      {state.sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300"
+          onClick={() => setState(p => ({ ...p, sidebarOpen: false }))}
+        />
+      )}
+
       <aside 
         className={`fixed md:relative z-50 h-full bg-black border-r border-white/10 transition-all duration-300 ease-in-out
           ${state.sidebarOpen ? 'w-[85vw] md:w-80 translate-x-0' : '-translate-x-full md:w-0'}`}
@@ -151,11 +159,18 @@ const App: React.FC = () => {
                  <div className="flex items-center space-x-2 mt-1">
                    {backendActive ? <Wifi size={10} className="text-green-500" /> : <WifiOff size={10} className="text-red-500" />}
                    <span className={`text-[8px] font-bold tracking-widest uppercase ${backendActive ? 'text-zinc-600' : 'text-red-600'}`}>
-                     {backendActive ? 'Engine Connected' : 'Engine Link Severed'}
+                     {backendActive ? 'Connected' : 'Offline'}
                    </span>
                  </div>
                </div>
             </div>
+            {/* Close Button for Mobile Sidebar */}
+            <button 
+              onClick={() => setState(p => ({ ...p, sidebarOpen: false }))}
+              className="md:hidden p-2 text-zinc-500 hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
           </div>
           
           <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -165,7 +180,13 @@ const App: React.FC = () => {
                 activeId={state.activeItemId}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
-                onSelectItem={(id) => setState(p => ({ ...p, activeItemId: id }))}
+                onSelectItem={(id) => {
+                  setState(p => ({ ...p, activeItemId: id }));
+                  // Auto-close sidebar on mobile after selection
+                  if (window.innerWidth < 768) {
+                    setState(p => ({ ...p, sidebarOpen: false }));
+                  }
+                }}
                 onNewFile={handleCreateNote}
                 onNewFolder={handleCreateFolder} 
                 onRenameItem={() => {}} 
@@ -175,23 +196,20 @@ const App: React.FC = () => {
                 <ShieldAlert size={32} className="text-red-900" />
                 <div className="space-y-3">
                   <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-500 leading-relaxed">
-                    Connection sequence failed. The Aki Node backend is unreachable.
+                    Engine Link Severed
                   </p>
                   {errorDetail && (
                     <div className="bg-zinc-950 p-4 border border-white/5 font-mono text-[9px] text-zinc-600 uppercase">
-                      Error_Log: {errorDetail}
+                      Log: {errorDetail}
                     </div>
                   )}
-                  <p className="text-[9px] text-zinc-700 italic">
-                    Run `npm start` in your project root.
-                  </p>
                 </div>
                 <button 
                   onClick={fetchVault}
                   className="w-full py-4 bg-white text-black font-black text-[10px] uppercase tracking-[0.3em] flex items-center justify-center space-x-3 hover:bg-zinc-200 transition-colors"
                 >
                   <RefreshCcw size={14} className={status === 'loading' ? 'animate-spin' : ''} />
-                  <span>Retry Connection</span>
+                  <span>Retry</span>
                 </button>
               </div>
             )}
@@ -199,8 +217,8 @@ const App: React.FC = () => {
 
           <div className="p-6 border-t border-white/10 bg-zinc-950/40">
             <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-widest text-zinc-800">
-              <span>Environment: Linux</span>
-              <span>Buffer: 3001</span>
+              <span>Linux</span>
+              <span>Port: 3001</span>
             </div>
           </div>
         </div>
@@ -226,7 +244,7 @@ const App: React.FC = () => {
             <div className={`flex items-center space-x-3 transition-all duration-300 ${status === 'idle' ? 'opacity-0' : 'opacity-100'}`}>
                <div className={`w-1.5 h-1.5 bg-white ${status === 'syncing' ? 'animate-ping' : 'animate-pulse'}`} />
                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-400">
-                 {status === 'syncing' ? 'Disk Write' : status === 'loading' ? 'Indexing' : 'Error'}
+                 {status === 'syncing' ? 'Sync' : status === 'loading' ? 'Wait' : 'Error'}
                </span>
             </div>
           </div>
@@ -248,12 +266,12 @@ const App: React.FC = () => {
               </div>
               <div className="text-center space-y-4">
                 <p className="text-[12px] font-black uppercase tracking-[0.8em] text-zinc-800">
-                  {backendActive ? 'Awaiting Instruction' : 'System Offline'}
+                  {backendActive ? 'No Buffer' : 'Offline'}
                 </p>
                 <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600 max-w-xs mx-auto leading-relaxed">
                   {backendActive 
-                    ? 'Select a document buffer from the local vault to initialize the render engine.' 
-                    : 'The connection to the Aki Node.js process was terminated. Verify your Linux environment status.'}
+                    ? 'Select a document buffer from the local vault.' 
+                    : 'Backend process unreachable. Verify environment status.'}
                 </p>
               </div>
             </div>
