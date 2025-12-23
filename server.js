@@ -7,21 +7,28 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const VAULT_ROOT = path.resolve(__dirname, 'aki-vault');
+// Use process.cwd() to ensure we look for the vault relative to where the command is run
+const VAULT_ROOT = path.resolve(process.cwd(), 'aki-vault');
 
 const app = express();
 const PORT = 3001;
-const HOST = '127.0.0.1'; // Using explicit IP to avoid localhost resolution issues on Linux
+const HOST = '0.0.0.0'; // Bind to all interfaces for maximum compatibility on Linux
 
 app.use(cors());
 app.use(bodyParser.json());
+
+// Request Logger for debugging 404s
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
 
 // Ensure vault exists and has at least one file
 async function ensureVault() {
   try {
     await fs.access(VAULT_ROOT);
   } catch {
-    console.log('Creating initial vault directory...');
+    console.log(`Creating initial vault directory at: ${VAULT_ROOT}`);
     await fs.mkdir(VAULT_ROOT, { recursive: true });
   }
   
@@ -75,6 +82,7 @@ async function scanDir(dirPath, relativePath = '') {
   return items;
 }
 
+// API Routes
 app.get('/api/vault', async (req, res) => {
   try {
     await ensureVault();
@@ -125,9 +133,14 @@ app.post('/api/delete', async (req, res) => {
   }
 });
 
+// Fallback for debugging
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: `Route ${req.method} ${req.originalUrl} not found on Aki Backend` });
+});
+
 app.listen(PORT, HOST, () => {
   console.log('------------------------------------');
-  console.log(`AKI ENGINE ACTIVE: http://${HOST}:${PORT}`);
+  console.log(`AKI ENGINE ACTIVE: http://localhost:${PORT}`);
   console.log(`VAULT LOCATION: ${VAULT_ROOT}`);
   console.log('------------------------------------');
 });
