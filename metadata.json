@@ -1,7 +1,5 @@
 {
   "name": "aki.md",
   "description": "A professional, mobile-first Obsidian-style Markdown vault manager with a minimalist white-on-black aesthetic for local, offline use.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "requestFramePermissions": []
 }

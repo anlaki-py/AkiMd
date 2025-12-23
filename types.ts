@@ -9,13 +9,12 @@ export interface VaultItem {
   parentId?: string;
   children?: string[];
   lastModified: number;
-  tags?: string[];
-  isPinned?: boolean;
+  handle?: FileSystemFileHandle | FileSystemDirectoryHandle;
 }
 
 export interface VaultState {
   items: Record<string, VaultItem>;
   activeItemId: string | null;
   sidebarOpen: boolean;
-  lastBackup?: number;
+  vaultName: string;
 }
