@@ -2,14 +2,13 @@
 export type FileType = 'markdown' | 'image' | 'pdf' | 'folder';
 
 export interface VaultItem {
-  id: string;
+  id: string; // The relative path from the vault root
   name: string;
   type: FileType;
   content?: string;
   parentId?: string;
   children?: string[];
   lastModified: number;
-  handle?: FileSystemFileHandle | FileSystemDirectoryHandle;
 }
 
 export interface VaultState {
